@@ -40,8 +40,6 @@ var (
 	requestPromptRoadMapConfigsApiGetPromptRoadMap    *http.Request
 )
 
-
-
 func setup(t *testing.T) {
 	m = mocha.New(t)
 	m.Start()
@@ -67,7 +65,7 @@ func setup(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	consumer, err = injector.InitializeConsumer()
+	consumer, err = injector.InitializeQueueAiRequesterConsumer()
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -137,7 +135,7 @@ func noMessageShouldBeSentToTheAirequesterQueue(queue string) error {
 		return err
 	}
 
-	if !assert.Nil(t, content){
+	if !assert.Nil(t, content) {
 		return fmt.Errorf("a message was sent to queue '%s'. Got: %s",
 			queue, string(content))
 	}
@@ -145,7 +143,7 @@ func noMessageShouldBeSentToTheAirequesterQueue(queue string) error {
 }
 
 func noPrompt_road_mapShouldBeFetchedFromThePromptroadmapapi() error {
-	if scopePromptRoadMapConfigsApiGetPromptRoadMap !=nil && scopePromptRoadMapConfigsApiGetPromptRoadMap.Called() {
+	if scopePromptRoadMapConfigsApiGetPromptRoadMap != nil && scopePromptRoadMapConfigsApiGetPromptRoadMap.Called() {
 		return fmt.Errorf("prompt road map was fetched")
 	}
 
@@ -225,11 +223,11 @@ func theMetadataShouldNotBeSentToTheValidationAPI() error {
 func thePromptRoadMapAPIReturnsAnStatusCode500() error {
 	scopePromptRoadMapConfigsApiGetPromptRoadMap = m.AddMocks(mocha.Get(expect.Func(func(v any, a expect.Args) (bool, error) {
 		return strings.Contains(a.RequestInfo.Request.URL.Path, "/prompt_road_map_configs"), nil
-	})).ReplyFunction(func(r *http.Request, _ reply.M, _ params.P) (*reply.Response, error){
+	})).ReplyFunction(func(r *http.Request, _ reply.M, _ params.P) (*reply.Response, error) {
 		requestPromptRoadMapConfigsApiGetPromptRoadMap = r
 		return &reply.Response{
-			 Status: http.StatusInternalServerError,
-			 Body:  io.NopCloser(strings.NewReader(`{"error": "Internal Server Error"}`)),
+			Status: http.StatusInternalServerError,
+			Body:   io.NopCloser(strings.NewReader(`{"error": "Internal Server Error"}`)),
 		}, nil
 	}))
 
@@ -314,7 +312,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 
 		if scopePromptRoadMapConfigExecutionsApiUpdateStep != nil {
 			scopePromptRoadMapConfigExecutionsApiUpdateStep.Clean()
-			scopePromptRoadMapConfigExecutionsApiUpdateStep = nil 
+			scopePromptRoadMapConfigExecutionsApiUpdateStep = nil
 		}
 
 		if scopePayloadValidationApiExecute != nil {
@@ -322,7 +320,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 			scopePayloadValidationApiExecute = nil
 		}
 
-		scopePayloadValidationApiExecute = nil 
+		scopePayloadValidationApiExecute = nil
 		requestPayloadValidationApiExecute = nil
 		requestPromptRoadMapConfigExecutionsApiUpdateStep = nil
 		requestPromptRoadMapConfigsApiGetPromptRoadMap = nil

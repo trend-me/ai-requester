@@ -25,6 +25,8 @@ func (u UseCase) Handle(ctx context.Context, request *models.Request) error {
 		return err
 	}
 
+	//todo: fetch prompt_road_map from api
+
 	aiResponse, err := ai.Prompt(ctx, request.Prompt)
 	if err != nil {
 		return err
@@ -34,6 +36,8 @@ func (u UseCase) Handle(ctx context.Context, request *models.Request) error {
 	if err != nil {
 		return err
 	}
+
+	//todo: validate response with api
 
 	request.Metadata = builders.BuildMetadata(request.Metadata, response)
 
