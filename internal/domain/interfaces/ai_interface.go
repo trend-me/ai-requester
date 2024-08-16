@@ -1,5 +1,7 @@
 package interfaces
 
+import "context"
+
 type Ai interface {
-	Prompt(prompt string) (string, error)
+	Prompt(ctx context.Context, prompt string) (string, error)
 }

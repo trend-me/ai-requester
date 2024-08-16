@@ -30,14 +30,14 @@ type (
 	}
 )
 
-func (a aiCallback) Publish(ctx context.Context, prompt string, request *models.Request) error {
+func (a aiCallback) Publish(ctx context.Context, request *models.Request) error {
 	slog.InfoContext(ctx, "AiRequester.Publish",
 		slog.String("details", "process started"))
 
 	b, err := json.Marshal(aiRequesterMessage{
 		PromptRoadMapConfigName:        request.PromptRoadMapConfigName,
 		PromptRoadMapConfigExecutionId: request.PromptRoadMapConfigExecutionId,
-		PromptRoadMapStep: request.PromptRoadMapStep,
+		PromptRoadMapStep:              request.PromptRoadMapStep,
 		OutputQueue:                    request.OutputQueue,
 		Model:                          request.Model,
 		Metadata:                       request.Metadata,

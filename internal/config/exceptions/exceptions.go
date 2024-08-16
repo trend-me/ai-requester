@@ -18,7 +18,7 @@ func NewUnknownError(messages ...string) ErrorType {
 	}
 }
 
-func NewMetadataValidationError(messages ...string) ErrorType {
+func NewAiFactoryError(messages ...string) ErrorType {
 	return ErrorType{
 		Abort:     true,
 		Notify:    true,
@@ -36,47 +36,11 @@ func NewQueueError(messages ...string) ErrorType {
 	}
 }
 
-func NewUpdatePromptRoadMapConfigExecutionError(messages ...string) ErrorType {
+func NewAiResponseError(messages ...string) ErrorType {
 	return ErrorType{
 		Abort:     false,
 		Notify:    true,
-		ErrorType: "Update PromptRoadMapConfigExecution Error",
-		message:   messages,
-	}
-}
-
-func NewGetPromptRoadMapError(messages ...string) ErrorType {
-	return ErrorType{
-		Abort:     false,
-		Notify:    true,
-		ErrorType: "Get PromptRoadMap Error",
-		message:   messages,
-	}
-}
-
-func NewPromptRoadMapConfigNotFoundError(messages ...string) ErrorType {
-	return ErrorType{
-		Abort:     true,
-		Notify:    true,
-		ErrorType: "PromptRoadMap NotFound Error",
-		message:   messages,
-	}
-}
-
-func NewPayloadValidatorNotFoundError(messages ...string) ErrorType {
-	return ErrorType{
-		Abort:     true,
-		Notify:    true,
-		ErrorType: "PayloadValidator NotFound Error",
-		message:   messages,
-	}
-}
-
-func NewPayloadValidatorError(messages ...string) ErrorType {
-	return ErrorType{
-		Abort:     true,
-		Notify:    true,
-		ErrorType: "PayloadValidator Error",
+		ErrorType: "AI Response Error",
 		message:   messages,
 	}
 }

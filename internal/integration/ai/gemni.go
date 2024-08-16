@@ -1,15 +1,19 @@
 package ai
 
-import "github.com/trend-me/ai-requester/internal/domain/interfaces"
+import (
+	"context"
 
-type (
- gemini struct {}
+	"github.com/trend-me/ai-requester/internal/domain/interfaces"
 )
 
-func (g *gemini) Prompt(prompt string) (string, error){
-	return "Gemini", nil
-}	
+type (
+	gemini struct{}
+)
 
-func NewGemini() interfaces.Ai{
+func (g *gemini) Prompt(ctx context.Context, prompt string) (string, error) {
+	return "Gemini", nil
+}
+
+func NewGemini() interfaces.Ai {
 	return &gemini{}
 }

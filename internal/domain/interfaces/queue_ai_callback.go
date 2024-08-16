@@ -7,5 +7,5 @@ import (
 )
 
 type QueueAiCallback interface {
-	Publish(ctx context.Context, prompt string, request *models.Request) error
+	Publish(ctx context.Context, request *models.Request) error
 }
