@@ -7,13 +7,17 @@ import (
 	"strings"
 )
 
-type contextKey = string
+type contextKey = struct {
+	Key string
+}
 
-const ctxReceiveCount contextKey = "ctxReceiveCount"
+var ctxReceiveCount contextKey = contextKey{"receiveCount"}
+
 const (
 	QueueNameAiPromptBuilder = "ai-requester"
 	QueueAiRequester         = "ai-requester"
-	ModelGemini              = "gemini"
+	AiModelGemini            = "gemini"
+	GeminiModel              = "gemini-pro"
 )
 
 func CreateQueueIfNX() bool {

@@ -8,17 +8,15 @@ import (
 	"github.com/trend-me/ai-requester/internal/domain/interfaces"
 )
 
-
-
 type (
 	AiFactory struct {
 		Gemini interfaces.Ai
 	}
 )
 
-func (f *AiFactory) FactoryAi(model string) (ai interfaces.Ai,err  error) {
+func (f *AiFactory) FactoryAi(model string) (ai interfaces.Ai, err error) {
 	m := map[string]interfaces.Ai{
-		properties.ModelGemini: f.Gemini,
+		properties.AiModelGemini: f.Gemini,
 	}
 
 	ai = m[model]
@@ -26,4 +24,10 @@ func (f *AiFactory) FactoryAi(model string) (ai interfaces.Ai,err  error) {
 		return nil, exceptions.NewAiFactoryError(fmt.Sprintf("model %s not implemented", model))
 	}
 	return
+}
+
+func NewAiFactory(gemini interfaces.Ai) *AiFactory {
+	return &AiFactory{
+		Gemini: gemini,
+	}
 }

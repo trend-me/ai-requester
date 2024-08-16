@@ -10,28 +10,23 @@ import (
 	"github.com/trend-me/ai-requester/internal/domain/interfaces"
 )
 
-const model = "gemini-pro"
-
 type (
-	GeminiClient interface {
-		GenerativeModel(model string) GeminiModel
-	}
 	GeminiModel interface {
 		GenerateContent(ctx context.Context, parts ...genai.Part) (*genai.GenerateContentResponse, error)
 	}
 
-	GeminiClientConstructor func(ctx context.Context, key string) (client GeminiClient, err error)
+	GeminiModelConstructor func(ctx context.Context, key string) (GeminiModel, error)
 
 	GeminiKeysGetter func() []string
 	gemini           struct {
-		geminiKeys              GeminiKeysGetter
-		geminiClientConstructor GeminiClientConstructor
-		client                  GeminiClient
+		geminiKeys             GeminiKeysGetter
+		geminiModelConstructor GeminiModelConstructor
+		model                  GeminiModel
 	}
 )
 
 func (g *gemini) createClient(ctx context.Context, key string) (err error) {
-	g.client, err = g.geminiClientConstructor(ctx, key)
+	g.model, err = g.geminiModelConstructor(ctx, key)
 	if err != nil {
 		slog.WarnContext(ctx, "gemini.createClient",
 			slog.String("details", "error during client creation"),
@@ -41,8 +36,7 @@ func (g *gemini) createClient(ctx context.Context, key string) (err error) {
 }
 
 func (g *gemini) generateContent(ctx context.Context, prompt string) (resp *genai.GenerateContentResponse, err error) {
-	model := g.client.GenerativeModel(model)
-	resp, err = model.GenerateContent(ctx, genai.Text(prompt))
+	resp, err = g.model.GenerateContent(ctx, genai.Text(prompt))
 	return
 }
 
@@ -78,10 +72,10 @@ func (g *gemini) Prompt(ctx context.Context, prompt string) (result string, err 
 
 func NewGemini(
 	geminiKeys GeminiKeysGetter,
-	geminiClientConstructor GeminiClientConstructor,
+	geminiModelConstructor GeminiModelConstructor,
 ) interfaces.Ai {
 	return &gemini{
-		geminiKeys:              geminiKeys,
-		geminiClientConstructor: geminiClientConstructor,
+		geminiKeys:             geminiKeys,
+		geminiModelConstructor: geminiModelConstructor,
 	}
 }

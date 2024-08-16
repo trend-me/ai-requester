@@ -7,6 +7,8 @@
 package injector
 
 import (
+	"context"
+	"github.com/google/generative-ai-go/genai"
 	"github.com/trend-me/ai-requester/internal/config/connections"
 	"github.com/trend-me/ai-requester/internal/config/properties"
 	"github.com/trend-me/ai-requester/internal/delivery/controllers"
@@ -16,6 +18,7 @@ import (
 	"github.com/trend-me/ai-requester/internal/integration/ai"
 	"github.com/trend-me/ai-requester/internal/integration/queue"
 	"github.com/trend-me/golang-rabbitmq-lib/rabbitmq"
+	"google.golang.org/api/option"
 )
 
 // Injectors from wire.go:
@@ -27,7 +30,10 @@ func InitializeQueueAiRequesterConsumer() (interfaces.QueueAiRequesterConsumer, 
 	}
 	connectionAiCallback := NewQueueConnectionAiCallback(connection)
 	queueAiCallback := queue.NewAiRequester(connectionAiCallback)
-	aiFactory := NewAiFactory()
+	geminiKeysGetter := GeminiKeysGetter()
+	geminiModelConstructor := GeminiModelConstructor()
+	interfacesAi := ai.NewGemini(geminiKeysGetter, geminiModelConstructor)
+	aiFactory := factories.NewAiFactory(interfacesAi)
 	useCase := usecases.NewUseCase(queueAiCallback, aiFactory)
 	controller := controllers.NewController(useCase)
 	connectionAiRequesterConsumer := NewQueueConnectionAiRequesterConsumer(connection)
@@ -55,8 +61,16 @@ func NewQueueAiRequesterConsumer(controller interfaces.Controller, connectionAiP
 	return queue.NewAiPromptBuilderConsumer(connectionAiPromptBuilderConsumer, controller)
 }
 
-func NewAiFactory() *factories.AiFactory {
-	return &factories.AiFactory{
-		Gemini: ai.NewGemini(),
+func GeminiModelConstructor() ai.GeminiModelConstructor {
+	return func(ctx context.Context, key string) (ai.GeminiModel, error) {
+		client, err := genai.NewClient(context.Background(), option.WithAPIKey(key))
+		if err != nil {
+			return nil, err
+		}
+		return client.GenerativeModel(properties.GeminiModel), nil
 	}
+}
+
+func GeminiKeysGetter() ai.GeminiKeysGetter {
+	return properties.AiGeminiKeys
 }
