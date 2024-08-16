@@ -19,7 +19,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-func NewQueueConnectionAiRequesterConsumer(connection *rabbitmq.Connection) queue.ConnectionAiRequesterConsumer {
+func newQueueConnectionAiRequesterConsumer(connection *rabbitmq.Connection) queue.ConnectionAiRequesterConsumer {
 	return rabbitmq.NewQueue(
 		connection,
 		properties.QueueNameAiPromptBuilder,
@@ -30,7 +30,7 @@ func NewQueueConnectionAiRequesterConsumer(connection *rabbitmq.Connection) queu
 	)
 }
 
-func NewQueueConnectionAiCallback(connection *rabbitmq.Connection) queue.ConnectionAiCallback {
+func newQueueConnectionAiCallback(connection *rabbitmq.Connection) queue.ConnectionAiCallback {
 	return rabbitmq.NewQueue(
 		connection,
 		properties.QueueAiRequester,
@@ -41,11 +41,11 @@ func NewQueueConnectionAiCallback(connection *rabbitmq.Connection) queue.Connect
 	)
 }
 
-func NewQueueAiRequesterConsumer(controller interfaces.Controller, connectionAiPromptBuilderConsumer queue.ConnectionAiRequesterConsumer) interfaces.QueueAiRequesterConsumer {
+func newQueueAiRequesterConsumer(controller interfaces.Controller, connectionAiPromptBuilderConsumer queue.ConnectionAiRequesterConsumer) interfaces.QueueAiRequesterConsumer {
 	return queue.NewAiPromptBuilderConsumer(connectionAiPromptBuilderConsumer, controller)
 }
 
-func GeminiModelConstructor() ai.GeminiModelConstructor {
+func geminiModelConstructor() ai.GeminiModelConstructor {
 	return func(ctx context.Context, key string) (ai.GeminiModel, error) {
 		client, err := genai.NewClient(context.Background(), option.WithAPIKey(key))
 		if err != nil {
@@ -55,22 +55,22 @@ func GeminiModelConstructor() ai.GeminiModelConstructor {
 	}
 }
 
-func GeminiKeysGetter() ai.GeminiKeysGetter {
+func geminiKeysGetter() ai.GeminiKeysGetter {
 	return properties.AiGeminiKeys
 }
 
 func InitializeQueueAiRequesterConsumer() (interfaces.QueueAiRequesterConsumer, error) {
 	wire.Build(
 		ai.NewGemini,
-		GeminiKeysGetter,
-		GeminiModelConstructor,
+		geminiKeysGetter,
+		geminiModelConstructor,
 		controllers.NewController,
 		factories.NewAiFactory,
 		usecases.NewUseCase,
 		queue.NewAiRequester,
-		NewQueueConnectionAiCallback,
-		NewQueueConnectionAiRequesterConsumer,
+		newQueueConnectionAiCallback,
+		newQueueConnectionAiRequesterConsumer,
 		connections.ConnectQueue,
-		NewQueueAiRequesterConsumer)
+		newQueueAiRequesterConsumer)
 	return nil, nil
 }

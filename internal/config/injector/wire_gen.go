@@ -28,40 +28,40 @@ func InitializeQueueAiRequesterConsumer() (interfaces.QueueAiRequesterConsumer, 
 	if err != nil {
 		return nil, err
 	}
-	connectionAiCallback := NewQueueConnectionAiCallback(connection)
+	connectionAiCallback := newQueueConnectionAiCallback(connection)
 	queueAiCallback := queue.NewAiRequester(connectionAiCallback)
-	geminiKeysGetter := GeminiKeysGetter()
-	geminiModelConstructor := GeminiModelConstructor()
-	interfacesAi := ai.NewGemini(geminiKeysGetter, geminiModelConstructor)
+	aiGeminiKeysGetter := geminiKeysGetter()
+	aiGeminiModelConstructor := geminiModelConstructor()
+	interfacesAi := ai.NewGemini(aiGeminiKeysGetter, aiGeminiModelConstructor)
 	aiFactory := factories.NewAiFactory(interfacesAi)
 	useCase := usecases.NewUseCase(queueAiCallback, aiFactory)
 	controller := controllers.NewController(useCase)
-	connectionAiRequesterConsumer := NewQueueConnectionAiRequesterConsumer(connection)
-	queueAiRequesterConsumer := NewQueueAiRequesterConsumer(controller, connectionAiRequesterConsumer)
+	connectionAiRequesterConsumer := newQueueConnectionAiRequesterConsumer(connection)
+	queueAiRequesterConsumer := newQueueAiRequesterConsumer(controller, connectionAiRequesterConsumer)
 	return queueAiRequesterConsumer, nil
 }
 
 // wire.go:
 
-func NewQueueConnectionAiRequesterConsumer(connection *rabbitmq.Connection) queue.ConnectionAiRequesterConsumer {
+func newQueueConnectionAiRequesterConsumer(connection *rabbitmq.Connection) queue.ConnectionAiRequesterConsumer {
 	return rabbitmq.NewQueue(
 		connection, properties.QueueNameAiPromptBuilder, rabbitmq.ContentTypeJson, properties.CreateQueueIfNX(), true,
 		true,
 	)
 }
 
-func NewQueueConnectionAiCallback(connection *rabbitmq.Connection) queue.ConnectionAiCallback {
+func newQueueConnectionAiCallback(connection *rabbitmq.Connection) queue.ConnectionAiCallback {
 	return rabbitmq.NewQueue(
 		connection, properties.QueueAiRequester, rabbitmq.ContentTypeJson, properties.CreateQueueIfNX(), true,
 		true,
 	)
 }
 
-func NewQueueAiRequesterConsumer(controller interfaces.Controller, connectionAiPromptBuilderConsumer queue.ConnectionAiRequesterConsumer) interfaces.QueueAiRequesterConsumer {
+func newQueueAiRequesterConsumer(controller interfaces.Controller, connectionAiPromptBuilderConsumer queue.ConnectionAiRequesterConsumer) interfaces.QueueAiRequesterConsumer {
 	return queue.NewAiPromptBuilderConsumer(connectionAiPromptBuilderConsumer, controller)
 }
 
-func GeminiModelConstructor() ai.GeminiModelConstructor {
+func geminiModelConstructor() ai.GeminiModelConstructor {
 	return func(ctx context.Context, key string) (ai.GeminiModel, error) {
 		client, err := genai.NewClient(context.Background(), option.WithAPIKey(key))
 		if err != nil {
@@ -71,6 +71,6 @@ func GeminiModelConstructor() ai.GeminiModelConstructor {
 	}
 }
 
-func GeminiKeysGetter() ai.GeminiKeysGetter {
+func geminiKeysGetter() ai.GeminiKeysGetter {
 	return properties.AiGeminiKeys
 }

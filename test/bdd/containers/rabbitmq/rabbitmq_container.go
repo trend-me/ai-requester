@@ -10,6 +10,7 @@ import (
 )
 
 const dial = "amqp://rabbit:rabbit@localhost:5672/"
+
 var conn rabbitmq.Connection
 var queues map[string]*rabbitmq.Queue
 
@@ -32,8 +33,8 @@ func Disconnect() error {
 
 func createQueues() error {
 	queues = map[string]*rabbitmq.Queue{
-		"ai-requester":      nil,
 		"ai-requester": nil,
+		"ai-callback":  nil,
 	}
 	for k := range queues {
 		queues[k] = rabbitmq.NewQueue(&conn, k, rabbitmq.ContentTypeJson, true, true, true)
@@ -107,16 +108,14 @@ func ConsumeMessageFromQueue(name string) (content []byte, headers map[string]in
 	case d := <-msgs:
 		content = d.Body
 		headers = d.Headers
-		_=d.Ack(false)
+		_ = d.Ack(false)
 	case <-timeout:
 	}
 
 	return content, headers, nil
 }
 
-
-
-func PurgeMessages() (error) {
+func PurgeMessages() error {
 	// Connect to RabbitMQ server
 	conn, err := amqp.Dial(dial)
 	if err != nil {
@@ -132,7 +131,6 @@ func PurgeMessages() (error) {
 	defer func(ch *amqp.Channel) {
 		_ = ch.Close()
 	}(ch)
-
 
 	for k := range queues {
 		_, err = ch.QueuePurge(k, false)
