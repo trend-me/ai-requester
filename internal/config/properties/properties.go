@@ -4,15 +4,16 @@ import (
 	"context"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type contextKey = string
 
-const ctxReceiveCount          contextKey = "ctxReceiveCount"
+const ctxReceiveCount contextKey = "ctxReceiveCount"
 const (
-	QueueNameAiPromptBuilder            = "ai-requester"
-	QueueAiRequester                    = "ai-requester"
-	ModelGemini = "gemini"
+	QueueNameAiPromptBuilder = "ai-requester"
+	QueueAiRequester         = "ai-requester"
+	ModelGemini              = "gemini"
 )
 
 func CreateQueueIfNX() bool {
@@ -33,6 +34,10 @@ func QueueConnectionHost() string {
 
 func QueueConnectionPassword() string {
 	return os.Getenv("QUEUE_CONNECTION_PASSWORD")
+}
+
+func AiGeminiKeys() []string {
+	return strings.Split(os.Getenv("AI_GEMINI_KEYS"), ",")
 }
 
 func GetMaxReceiveCount() int {

@@ -44,3 +44,12 @@ func NewAiResponseError(messages ...string) ErrorType {
 		message:   messages,
 	}
 }
+
+func NewAiError(messages ...string) ErrorType {
+	return ErrorType{
+		Abort:     false,
+		Notify:    true,
+		ErrorType: "AI Error",
+		message:   messages,
+	}
+}
