@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	factories "github.com/trend-me/ai-requester/internal/domain/factory"
+	"github.com/trend-me/ai-requester/internal/domain/factories"
 	"github.com/trend-me/ai-requester/internal/domain/interfaces"
 	"github.com/trend-me/ai-requester/internal/domain/models"
 )
