@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 
 	"github.com/trend-me/ai-requester/internal/config/exceptions"
@@ -44,7 +45,10 @@ func (u UseCase) Handle(ctx context.Context, request *models.Request) error {
 		return err
 	}
 
-	u.validateMetadata(ctx, promptRoadMap, request)
+	err = u.validateMetadata(ctx, promptRoadMap, aiResponse)
+	if err != nil {
+		return err
+	}
 
 	request.Metadata = builders.BuildMetadata(request.Metadata, response)
 
@@ -58,20 +62,19 @@ func (u UseCase) Handle(ctx context.Context, request *models.Request) error {
 	return nil
 }
 
-func (u UseCase) validateMetadata(ctx context.Context, promptRoadMap *models.PromptRoadMap, request *models.Request) error {
-	payload, err := json.Marshal(request.Metadata)
-	if err != nil {
-		return exceptions.NewValidationError(err.Error())
-	}
+func (u UseCase) validateMetadata(ctx context.Context, promptRoadMap *models.PromptRoadMap, aiResponse string) error {
 
-	payloadValidationExecutionResponse, err := u.apiValidation.ExecutePayloadValidator(ctx, promptRoadMap.ResponseValidationName, payload)
+	payloadValidationExecutionResponse, err := u.apiValidation.ExecutePayloadValidator(ctx, promptRoadMap.ResponseValidationName, []byte(aiResponse))
 	if err != nil {
 		return err
 	}
 
-	bPayloadValidationExecutionResponse, _ := json.Marshal(payloadValidationExecutionResponse)
+	bPayloadValidationExecutionResponse, err := json.Marshal(payloadValidationExecutionResponse)
+	if err != nil {
+		return exceptions.NewValidationError(fmt.Sprintf("error marshalling payload validation execution response: %s", err.Error()))
+	}
 	slog.InfoContext(ctx, "useCase.Handle",
-		slog.String("details", "ai resopnse validation"),
+		slog.String("details", "ai response validation"),
 		slog.String("result", string(bPayloadValidationExecutionResponse)))
 
 	if payloadValidationExecutionResponse.Failures != nil && len(*payloadValidationExecutionResponse.Failures) > 0 {

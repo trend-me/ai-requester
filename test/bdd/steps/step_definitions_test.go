@@ -202,10 +202,9 @@ func theMessageIsConsumedByTheAipromptbuilderConsumer() error {
 	timeout := time.After(120 * time.Second)
 	for {
 		select {
-		case err = <-errCh:
+		case <-errCh:
 			cancel()
-			//cancel timeou
-			return err
+			return nil
 		case <-timeout:
 			err = fmt.Errorf("timeout")
 			return err

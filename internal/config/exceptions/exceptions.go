@@ -56,7 +56,7 @@ func NewAiError(messages ...string) ErrorType {
 
 func NewAiResponseValidationError(messages ...string) ErrorType {
 	return ErrorType{
-		Abort:     true,
+		Abort:     false,
 		Notify:    true,
 		ErrorType: "Metadata Validation Error",
 		message:   messages,
