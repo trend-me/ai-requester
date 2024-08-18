@@ -2,8 +2,10 @@ package usecases
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 
+	"github.com/trend-me/ai-requester/internal/config/exceptions"
 	"github.com/trend-me/ai-requester/internal/domain/builders"
 	"github.com/trend-me/ai-requester/internal/domain/factories"
 	"github.com/trend-me/ai-requester/internal/domain/interfaces"
@@ -12,8 +14,10 @@ import (
 )
 
 type UseCase struct {
-	queueAiCallback interfaces.QueueAiCallback
-	aiFactory       *factories.AiFactory
+	apiPromptRoadMapConfig interfaces.ApiPromptRoadMapConfig
+	apiValidation          interfaces.ApiValidation
+	queueAiCallback        interfaces.QueueAiCallback
+	aiFactory              *factories.AiFactory
 }
 
 func (u UseCase) Handle(ctx context.Context, request *models.Request) error {
@@ -25,7 +29,10 @@ func (u UseCase) Handle(ctx context.Context, request *models.Request) error {
 		return err
 	}
 
-	//todo: fetch prompt_road_map from api
+	promptRoadMap, err := u.apiPromptRoadMapConfig.GetPromptRoadMap(ctx, request.PromptRoadMapConfigName, request.PromptRoadMapStep)
+	if err != nil {
+		return err
+	}
 
 	aiResponse, err := ai.Prompt(ctx, request.Prompt)
 	if err != nil {
@@ -37,7 +44,7 @@ func (u UseCase) Handle(ctx context.Context, request *models.Request) error {
 		return err
 	}
 
-	//todo: validate response with api
+	u.validateMetadata(ctx, promptRoadMap, request)
 
 	request.Metadata = builders.BuildMetadata(request.Metadata, response)
 
@@ -51,9 +58,39 @@ func (u UseCase) Handle(ctx context.Context, request *models.Request) error {
 	return nil
 }
 
-func NewUseCase(queueAiCallback interfaces.QueueAiCallback, aiFactory *factories.AiFactory) interfaces.UseCase {
+func (u UseCase) validateMetadata(ctx context.Context, promptRoadMap *models.PromptRoadMap, request *models.Request) error {
+	if promptRoadMap.Step > 1 {
+		payload, err := json.Marshal(request.Metadata)
+		if err != nil {
+			return exceptions.NewValidationError(err.Error())
+		}
+
+		payloadValidationExecutionResponse, err := u.apiValidation.ExecutePayloadValidator(ctx, promptRoadMap.MetadataValidationName, payload)
+		if err != nil {
+			return err
+		}
+
+		bPayloadValidationExecutionResponse, _ := json.Marshal(payloadValidationExecutionResponse)
+		slog.InfoContext(ctx, "useCase.Handle",
+			slog.String("details", "ai resopnse validation"),
+			slog.String("result", string(bPayloadValidationExecutionResponse)))
+
+		if payloadValidationExecutionResponse.Failures != nil && len(*payloadValidationExecutionResponse.Failures) > 0 {
+			return exceptions.NewAiResponseValidationError(*payloadValidationExecutionResponse.Failures)
+		}
+	}
+	return nil
+}
+
+func NewUseCase(
+	queueAiCallback interfaces.QueueAiCallback,
+	aiFactory *factories.AiFactory,
+	apiPromptRoadMapConfig interfaces.ApiPromptRoadMapConfig,
+	apiValidation interfaces.ApiValidation) interfaces.UseCase {
 	return &UseCase{
-		queueAiCallback: queueAiCallback,
-		aiFactory:       aiFactory,
+		queueAiCallback:        queueAiCallback,
+		aiFactory:              aiFactory,
+		apiPromptRoadMapConfig: apiPromptRoadMapConfig,
+		apiValidation:          apiValidation,
 	}
 }

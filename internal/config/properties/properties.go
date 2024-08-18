@@ -57,3 +57,11 @@ func GetCtxRetryCount(ctx context.Context) int {
 	i, _ := ctx.Value(ctxReceiveCount).(int)
 	return i
 }
+
+func UrlApiPromptRoadMapConfig() string {
+	return os.Getenv("URL_API_PROMPT_ROAD_MAP_CONFIG")
+}
+
+func UrlApiValidation() string {
+	return os.Getenv("URL_API_VALIDATION")
+}

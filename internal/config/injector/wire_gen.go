@@ -16,6 +16,7 @@ import (
 	"github.com/trend-me/ai-requester/internal/domain/interfaces"
 	"github.com/trend-me/ai-requester/internal/domain/usecases"
 	"github.com/trend-me/ai-requester/internal/integration/ai"
+	"github.com/trend-me/ai-requester/internal/integration/api"
 	"github.com/trend-me/ai-requester/internal/integration/queue"
 	"github.com/trend-me/golang-rabbitmq-lib/rabbitmq"
 	"google.golang.org/api/option"
@@ -34,7 +35,11 @@ func InitializeQueueAiRequesterConsumer() (interfaces.QueueAiRequesterConsumer, 
 	aiGeminiModelConstructor := geminiModelConstructor()
 	interfacesAi := ai.NewGemini(aiGeminiKeysGetter, aiGeminiModelConstructor)
 	aiFactory := factories.NewAiFactory(interfacesAi)
-	useCase := usecases.NewUseCase(queueAiCallback, aiFactory)
+	urlApiPromptRoadMapConfig := urlApiPromptRoadMapConfigGetter()
+	apiPromptRoadMapConfig := api.NewApiPromptRoadMapConfig(urlApiPromptRoadMapConfig)
+	urlApiValidation := urlApiValidationGetter()
+	apiValidation := api.NewValidation(urlApiValidation)
+	useCase := usecases.NewUseCase(queueAiCallback, aiFactory, apiPromptRoadMapConfig, apiValidation)
 	controller := controllers.NewController(useCase)
 	connectionAiRequesterConsumer := newQueueConnectionAiRequesterConsumer(connection)
 	queueAiRequesterConsumer := newQueueAiRequesterConsumer(controller, connectionAiRequesterConsumer)
@@ -73,4 +78,12 @@ func geminiModelConstructor() ai.GeminiModelConstructor {
 
 func geminiKeysGetter() ai.GeminiKeysGetter {
 	return properties.AiGeminiKeys
+}
+
+func urlApiValidationGetter() api.UrlApiValidation {
+	return properties.UrlApiValidation
+}
+
+func urlApiPromptRoadMapConfigGetter() api.UrlApiPromptRoadMapConfig {
+	return properties.UrlApiPromptRoadMapConfig
 }

@@ -53,3 +53,48 @@ func NewAiError(messages ...string) ErrorType {
 		message:   messages,
 	}
 }
+
+func NewAiResponseValidationError(messages ...string) ErrorType {
+	return ErrorType{
+		Abort:     true,
+		Notify:    true,
+		ErrorType: "Metadata Validation Error",
+		message:   messages,
+	}
+}
+
+func NewPromptRoadMapNotFoundError(messages ...string) ErrorType {
+	return ErrorType{
+		Abort:     true,
+		Notify:    true,
+		ErrorType: "Prompt Road Map Not Found Error",
+		message:   messages,
+	}
+}
+
+func NewGetPromptRoadMapConfigError(messages ...string) ErrorType {
+	return ErrorType{
+		Abort:     false,
+		Notify:    true,
+		ErrorType: "Get Prompt Road Map Config Error",
+		message:   messages,
+	}
+}
+
+func NewPayloadValidatorNotFoundError(messages ...string) ErrorType {
+	return ErrorType{
+		Abort:     false,
+		Notify:    true,
+		ErrorType: "Prompt Road Map Config Error",
+		message:   messages,
+	}
+}
+
+func NewPayloadValidatorError(messages ...string) ErrorType {
+	return ErrorType{
+		Abort:     false,
+		Notify:    true,
+		ErrorType: "Payload Validator Error",
+		message:   messages,
+	}
+}

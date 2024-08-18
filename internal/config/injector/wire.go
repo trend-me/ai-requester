@@ -14,6 +14,7 @@ import (
 	"github.com/trend-me/ai-requester/internal/domain/interfaces"
 	"github.com/trend-me/ai-requester/internal/domain/usecases"
 	"github.com/trend-me/ai-requester/internal/integration/ai"
+	"github.com/trend-me/ai-requester/internal/integration/api"
 	"github.com/trend-me/ai-requester/internal/integration/queue"
 	"github.com/trend-me/golang-rabbitmq-lib/rabbitmq"
 	"google.golang.org/api/option"
@@ -59,8 +60,20 @@ func geminiKeysGetter() ai.GeminiKeysGetter {
 	return properties.AiGeminiKeys
 }
 
+func urlApiValidationGetter() api.UrlApiValidation {
+	return properties.UrlApiValidation
+}
+
+func urlApiPromptRoadMapConfigGetter() api.UrlApiPromptRoadMapConfig {
+	return properties.UrlApiPromptRoadMapConfig
+}
+
 func InitializeQueueAiRequesterConsumer() (interfaces.QueueAiRequesterConsumer, error) {
 	wire.Build(
+		urlApiPromptRoadMapConfigGetter,
+		urlApiValidationGetter,
+		api.NewValidation,
+		api.NewApiPromptRoadMapConfig,
 		ai.NewGemini,
 		geminiKeysGetter,
 		geminiModelConstructor,
