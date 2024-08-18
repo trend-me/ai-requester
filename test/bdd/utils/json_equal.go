@@ -5,15 +5,15 @@ import (
 	"reflect"
 )
 
-func JsonEqual(a, b string) bool {
+func JsonEqual(a, b string) (bool, error) {
 	var j1, j2 map[string]interface{}
 
 	if err := json.Unmarshal([]byte(a), &j1); err != nil {
-		return false
+		return false, err
 	}
 	if err := json.Unmarshal([]byte(b), &j2); err != nil {
-		return false
+		return false, err
 	}
 
-	return reflect.DeepEqual(j1, j2)
+	return reflect.DeepEqual(j1, j2), nil
 }

@@ -7,34 +7,27 @@
 package injector
 
 import (
-	"context"
-	"github.com/google/generative-ai-go/genai"
 	"github.com/trend-me/ai-requester/internal/config/connections"
 	"github.com/trend-me/ai-requester/internal/config/properties"
 	"github.com/trend-me/ai-requester/internal/delivery/controllers"
 	"github.com/trend-me/ai-requester/internal/domain/factories"
 	"github.com/trend-me/ai-requester/internal/domain/interfaces"
 	"github.com/trend-me/ai-requester/internal/domain/usecases"
-	"github.com/trend-me/ai-requester/internal/integration/ai"
 	"github.com/trend-me/ai-requester/internal/integration/api"
 	"github.com/trend-me/ai-requester/internal/integration/queue"
 	"github.com/trend-me/golang-rabbitmq-lib/rabbitmq"
-	"google.golang.org/api/option"
 )
 
 // Injectors from wire.go:
 
-func InitializeQueueAiRequesterConsumer() (interfaces.QueueAiRequesterConsumer, error) {
+func InitializeQueueAiRequesterConsumerMock(geminiMock interfaces.Ai) (interfaces.QueueAiRequesterConsumer, error) {
 	connection, err := connections.ConnectQueue()
 	if err != nil {
 		return nil, err
 	}
 	connectionAiCallback := newQueueConnectionAiCallback(connection)
 	queueAiCallback := queue.NewAiRequester(connectionAiCallback)
-	aiGeminiKeysGetter := geminiKeysGetter()
-	aiGeminiModelConstructor := geminiModelConstructor()
-	interfacesAi := ai.NewGemini(aiGeminiKeysGetter, aiGeminiModelConstructor)
-	aiFactory := factories.NewAiFactory(interfacesAi)
+	aiFactory := factories.NewAiFactory(geminiMock)
 	urlApiPromptRoadMapConfig := urlApiPromptRoadMapConfigGetter()
 	apiPromptRoadMapConfig := api.NewApiPromptRoadMapConfig(urlApiPromptRoadMapConfig)
 	urlApiValidation := urlApiValidationGetter()
@@ -64,20 +57,6 @@ func newQueueConnectionAiCallback(connection *rabbitmq.Connection) queue.Connect
 
 func newQueueAiRequesterConsumer(controller interfaces.Controller, connectionAiPromptBuilderConsumer queue.ConnectionAiRequesterConsumer) interfaces.QueueAiRequesterConsumer {
 	return queue.NewAiPromptBuilderConsumer(connectionAiPromptBuilderConsumer, controller)
-}
-
-func geminiModelConstructor() ai.GeminiModelConstructor {
-	return func(ctx context.Context, key string) (ai.GeminiModel, error) {
-		client, err := genai.NewClient(context.Background(), option.WithAPIKey(key))
-		if err != nil {
-			return nil, err
-		}
-		return client.GenerativeModel(properties.GeminiModel), nil
-	}
-}
-
-func geminiKeysGetter() ai.GeminiKeysGetter {
-	return properties.AiGeminiKeys
 }
 
 func urlApiValidationGetter() api.UrlApiValidation {

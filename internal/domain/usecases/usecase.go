@@ -59,25 +59,23 @@ func (u UseCase) Handle(ctx context.Context, request *models.Request) error {
 }
 
 func (u UseCase) validateMetadata(ctx context.Context, promptRoadMap *models.PromptRoadMap, request *models.Request) error {
-	if promptRoadMap.Step > 1 {
-		payload, err := json.Marshal(request.Metadata)
-		if err != nil {
-			return exceptions.NewValidationError(err.Error())
-		}
+	payload, err := json.Marshal(request.Metadata)
+	if err != nil {
+		return exceptions.NewValidationError(err.Error())
+	}
 
-		payloadValidationExecutionResponse, err := u.apiValidation.ExecutePayloadValidator(ctx, promptRoadMap.MetadataValidationName, payload)
-		if err != nil {
-			return err
-		}
+	payloadValidationExecutionResponse, err := u.apiValidation.ExecutePayloadValidator(ctx, promptRoadMap.ResponseValidationName, payload)
+	if err != nil {
+		return err
+	}
 
-		bPayloadValidationExecutionResponse, _ := json.Marshal(payloadValidationExecutionResponse)
-		slog.InfoContext(ctx, "useCase.Handle",
-			slog.String("details", "ai resopnse validation"),
-			slog.String("result", string(bPayloadValidationExecutionResponse)))
+	bPayloadValidationExecutionResponse, _ := json.Marshal(payloadValidationExecutionResponse)
+	slog.InfoContext(ctx, "useCase.Handle",
+		slog.String("details", "ai resopnse validation"),
+		slog.String("result", string(bPayloadValidationExecutionResponse)))
 
-		if payloadValidationExecutionResponse.Failures != nil && len(*payloadValidationExecutionResponse.Failures) > 0 {
-			return exceptions.NewAiResponseValidationError(*payloadValidationExecutionResponse.Failures)
-		}
+	if payloadValidationExecutionResponse.Failures != nil && len(*payloadValidationExecutionResponse.Failures) > 0 {
+		return exceptions.NewAiResponseValidationError(*payloadValidationExecutionResponse.Failures)
 	}
 	return nil
 }

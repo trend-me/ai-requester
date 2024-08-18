@@ -2,7 +2,6 @@ package steps
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,14 +11,16 @@ import (
 	"time"
 
 	"github.com/trend-me/ai-requester/internal/domain/interfaces"
+	"github.com/trend-me/ai-requester/internal/integration/ai"
 
 	"github.com/cucumber/godog"
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
-	"github.com/trend-me/ai-requester/internal/config/injector"
 	"github.com/trend-me/ai-requester/internal/config/properties"
 	"github.com/trend-me/ai-requester/test/bdd/containers"
 	rabbitmq_container "github.com/trend-me/ai-requester/test/bdd/containers/rabbitmq"
+	"github.com/trend-me/ai-requester/test/bdd/injector"
+	"github.com/trend-me/ai-requester/test/bdd/mocks"
 	"github.com/trend-me/ai-requester/test/bdd/utils"
 	"github.com/vitorsalgado/mocha/v3"
 	"github.com/vitorsalgado/mocha/v3/expect"
@@ -28,16 +29,15 @@ import (
 )
 
 var (
-	t                                                 *testing.T
-	consumedMessage                                   string
-	consumer                                          interfaces.QueueAiRequesterConsumer
-	m                                                 *mocha.Mocha
-	scopePromptRoadMapConfigsApiGetPromptRoadMap      *mocha.Scoped
-	scopePromptRoadMapConfigExecutionsApiUpdateStep   *mocha.Scoped
-	scopePayloadValidationApiExecute                  *mocha.Scoped
-	requestPayloadValidationApiExecute                *http.Request
-	requestPromptRoadMapConfigExecutionsApiUpdateStep *http.Request
-	requestPromptRoadMapConfigsApiGetPromptRoadMap    *http.Request
+	t                                              *testing.T
+	consumedMessage                                string
+	consumer                                       interfaces.QueueAiRequesterConsumer
+	m                                              *mocha.Mocha
+	scopePromptRoadMapConfigsApiGetPromptRoadMap   *mocha.Scoped
+	scopePayloadValidationApiExecute               *mocha.Scoped
+	requestPayloadValidationApiExecute             *http.Request
+	requestPromptRoadMapConfigsApiGetPromptRoadMap *http.Request
+	geminiMock                                     *mocks.GeminiModelMock
 )
 
 func setup(t *testing.T) {
@@ -65,7 +65,16 @@ func setup(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	consumer, err = injector.InitializeQueueAiRequesterConsumer()
+	geminiMock = &mocks.GeminiModelMock{}
+	consumer, err = injector.InitializeQueueAiRequesterConsumerMock(
+		ai.NewGemini(
+			func() []string {
+				return []string{"test"}
+			},
+			func(ctx context.Context, key string) (ai.GeminiModel, error) {
+				return geminiMock, nil
+			},
+		))
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -110,7 +119,7 @@ func TestFeatures(t_ *testing.T) {
 }
 
 func aMessageWithTheFollowingDataIsSentToAipromptbuilderQueue(queue string, arg1 *godog.DocString) error {
-	if queue == properties.QueueNameAiPromptBuilder {
+	if queue == properties.QueueAiRequester {
 		consumedMessage = arg1.Content
 	}
 	return rabbitmq_container.PostMessageToQueue(queue, []byte(arg1.Content))
@@ -121,11 +130,15 @@ func aMessageWithTheFollowingDataShouldBeSentToAipromptbuilderQueue(queue string
 	if err != nil {
 		return err
 	}
-
-	if !utils.JsonEqual(arg1.Content, string(content)) {
+	res, err := utils.JsonEqual(arg1.Content, string(content))
+	if !res {
+		if err != nil {
+			return fmt.Errorf("error comparing json: %v", err)
+		}
 		return fmt.Errorf("message sent to queue '%s' is not equal to the expected message: %s. Got: %s",
 			queue, arg1.Content, string(content))
 	}
+
 	return nil
 }
 
@@ -150,16 +163,8 @@ func noPrompt_road_mapShouldBeFetchedFromThePromptroadmapapi() error {
 	return nil
 }
 
-func noPrompt_road_map_config_executionShouldBeUpdated() error {
-	if scopePromptRoadMapConfigExecutionsApiUpdateStep != nil && scopePromptRoadMapConfigExecutionsApiUpdateStep.Called() {
-		return fmt.Errorf("prompt road map config execution step was updated")
-	}
-
-	return nil
-}
-
 func theApplicationShouldNotRetry() error {
-	content, _, err := rabbitmq_container.ConsumeMessageFromQueue(properties.QueueNameAiPromptBuilder)
+	content, _, err := rabbitmq_container.ConsumeMessageFromQueue(properties.QueueAiRequester)
 	if err != nil {
 		return err
 	}
@@ -168,13 +173,20 @@ func theApplicationShouldNotRetry() error {
 }
 
 func theApplicationShouldRetry() error {
-	content, _, err := rabbitmq_container.ConsumeMessageFromQueue(properties.QueueNameAiPromptBuilder)
+	content, _, err := rabbitmq_container.ConsumeMessageFromQueue(properties.QueueAiRequester)
 	if err != nil {
 		return err
 	}
-	if !utils.JsonEqual(string(content), consumedMessage) {
+
+	res, err := utils.JsonEqual(string(content), string(consumedMessage))
+	if !res {
+		if err != nil {
+			return fmt.Errorf("error comparing json: %v", err)
+		}
+
 		return fmt.Errorf("message sent to queue '%s' is not equal to the expected message: %s. Got: %s",
-			properties.QueueNameAiPromptBuilder, consumedMessage, string(content))
+			properties.QueueAiRequester, consumedMessage, string(content))
+
 	}
 	return nil
 }
@@ -187,34 +199,37 @@ func theMessageIsConsumedByTheAipromptbuilderConsumer() error {
 		return err
 	}
 
+	timeout := time.After(120 * time.Second)
 	for {
 		select {
-		case <-errCh:
+		case err = <-errCh:
+			cancel()
+			//cancel timeou
 			return err
-		case <-time.After(120 * time.Second):
+		case <-timeout:
 			err = fmt.Errorf("timeout")
 			return err
 		}
 	}
 }
 
-func theMetadataShouldBeSentToTheValidationAPIWithTheMetadata_validation_nameTEST_METADATA(name string) error {
+func theresponseShouldBeSentToTheValidationAPIWithTheresponse_validation_nameTEST_response(name string) error {
 	if !scopePayloadValidationApiExecute.Called() || requestPayloadValidationApiExecute == nil {
-		return fmt.Errorf("metadata was not sent to the validation API")
+		return fmt.Errorf("response was not sent to the validation API")
 	}
 
 	split := strings.Split(requestPayloadValidationApiExecute.URL.Path, "/")
 	if split[len(split)-1] != name {
-		return fmt.Errorf("metadata was not sent to the validation API with the correct metadata_validation_name. I was %s",
+		return fmt.Errorf("response was not sent to the validation API with the correct response_validation_name. I was %s",
 			requestPayloadValidationApiExecute.URL.Path)
 	}
 
 	return nil
 }
 
-func theMetadataShouldNotBeSentToTheValidationAPI() error {
+func theresponseShouldNotBeSentToTheValidationAPI() error {
 	if scopePayloadValidationApiExecute != nil && scopePayloadValidationApiExecute.Called() {
-		return fmt.Errorf("metadata was sent to the validation API")
+		return fmt.Errorf("response was sent to the validation API")
 	}
 
 	return nil
@@ -253,36 +268,8 @@ func thePrompt_road_mapIsFetchedFromThePromptroadmapapiUsingThePrompt_road_map_c
 	}
 
 	if !strings.Contains(requestPromptRoadMapConfigsApiGetPromptRoadMap.URL.Path, fmt.Sprintf("/prompt_road_map_configs/%s/prompt_road_maps/%d", name, step)) {
-		return fmt.Errorf("prompt_road_map_config fetched with '%s'. Requierd prompt_road_map_config_name: '%s' and step: '%d'",
+		return fmt.Errorf("prompt_road_map_config fetched with '%s'. Required prompt_road_map_config_name: '%s' and step: '%d'",
 			requestPromptRoadMapConfigsApiGetPromptRoadMap.URL.Path, name, step)
-	}
-
-	return nil
-}
-
-func thePrompt_road_map_config_executionIsUpdatedWithTheCurrentStepOfThePrompt_road_map(step int) error {
-
-	if !scopePromptRoadMapConfigExecutionsApiUpdateStep.Called() || requestPromptRoadMapConfigExecutionsApiUpdateStep == nil {
-		return fmt.Errorf("prompt_road_map_config_executions step was not updated")
-	}
-
-	body := make(map[string]interface{})
-	decoder := json.NewDecoder(requestPromptRoadMapConfigExecutionsApiUpdateStep.Body)
-	err := decoder.Decode(&body)
-	if err != nil {
-		return fmt.Errorf("")
-	}
-	updatedStep, ok := body["step_in_execution"]
-	if !ok {
-		return fmt.Errorf("prompt_road_map_config_executions step was not updated with:  '%d'", step)
-	}
-
-	if updatedStepInt, ok := updatedStep.(float64); ok {
-		if int(updatedStepInt) != step {
-			return fmt.Errorf("prompt_road_map_config_executions step was updated with:  '%d'", int(updatedStepInt))
-		}
-	} else if updatedStep != step {
-		return fmt.Errorf("prompt_road_map_config_executions step was updated with:  '%s'", updatedStep)
 	}
 
 	return nil
@@ -302,17 +289,39 @@ func theValidationAPIReturnsTheFollowingValidationResult(name string, arg1 *godo
 	return nil
 }
 
+func theFollowingPromptShouldBeSentToTheFollowingAiModel(arg1 *godog.Table) error {
+	if len(arg1.Rows[0].Cells) != 2 || arg1.Rows[0].Cells[0].Value != "prompt" || arg1.Rows[0].Cells[1].Value != "model" {
+		return fmt.Errorf("expected table with headers 'prompt' and 'model'")
+	}
+	prompt := arg1.Rows[1].Cells[0].Value
+	model := arg1.Rows[1].Cells[1].Value
+
+	if model == properties.AiModelNameGemini {
+		if geminiMock.GetPrompt() == prompt {
+			return nil
+		}
+		return fmt.Errorf("expected prompt '%s' to be sent to model '%s'. Got: '%s'", prompt, model, geminiMock.GetPrompt())
+	}
+
+	return fmt.Errorf("expected prompt '%s' to be sent to model '%s'. But model was not configured in test setup", prompt, model)
+}
+
+func theAiModelReturnsTheFollowingResponse(model string, arg1 *godog.DocString) error {
+	if model == properties.AiModelNameGemini {
+		geminiMock.SetResponse(arg1.Content)
+		return nil
+	}
+	return fmt.Errorf("model '%s' was not configured in test setup", model)
+}
+
 func InitializeScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
+		geminiMock.Clean()
+
 		if scopePromptRoadMapConfigsApiGetPromptRoadMap != nil {
 			scopePromptRoadMapConfigsApiGetPromptRoadMap.Clean()
 			scopePromptRoadMapConfigsApiGetPromptRoadMap = nil
-		}
-
-		if scopePromptRoadMapConfigExecutionsApiUpdateStep != nil {
-			scopePromptRoadMapConfigExecutionsApiUpdateStep.Clean()
-			scopePromptRoadMapConfigExecutionsApiUpdateStep = nil
 		}
 
 		if scopePayloadValidationApiExecute != nil {
@@ -322,24 +331,8 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 
 		scopePayloadValidationApiExecute = nil
 		requestPayloadValidationApiExecute = nil
-		requestPromptRoadMapConfigExecutionsApiUpdateStep = nil
 		requestPromptRoadMapConfigsApiGetPromptRoadMap = nil
 		consumedMessage = ""
-
-		scopePromptRoadMapConfigExecutionsApiUpdateStep = m.AddMocks(mocha.
-			Patch(expect.Func(func(v any, a expect.Args) (bool, error) {
-				if !strings.Contains(a.RequestInfo.Request.URL.Path, "/prompt_road_map_config_executions") {
-					return false, nil
-				}
-
-				return true, nil
-			})).
-			ReplyFunction(func(request *http.Request, r reply.M, p params.P) (*reply.Response, error) {
-				requestPromptRoadMapConfigExecutionsApiUpdateStep = request
-				return &reply.Response{
-					Status: http.StatusOK,
-				}, nil
-			}))
 
 		_ = rabbitmq_container.PurgeMessages()
 		return ctx, nil
@@ -349,15 +342,15 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^a message with the following data should be sent to \'(.*)\' queue:$`, aMessageWithTheFollowingDataShouldBeSentToAipromptbuilderQueue)
 	ctx.Step(`^no message should be sent to the \'(.*)\' queue$`, noMessageShouldBeSentToTheAirequesterQueue)
 	ctx.Step(`^no prompt_road_map should be fetched from the prompt-road-map-api$`, noPrompt_road_mapShouldBeFetchedFromThePromptroadmapapi)
-	ctx.Step(`^no prompt_road_map_config_execution should be updated$`, noPrompt_road_map_config_executionShouldBeUpdated)
 	ctx.Step(`^the application should not retry$`, theApplicationShouldNotRetry)
 	ctx.Step(`^the application should retry$`, theApplicationShouldRetry)
 	ctx.Step(`^the message is consumed by the ai-requester consumer$`, theMessageIsConsumedByTheAipromptbuilderConsumer)
-	ctx.Step(`^the metadata should be sent to the validation API with the metadata_validation_name \'(.*)\'$`, theMetadataShouldBeSentToTheValidationAPIWithTheMetadata_validation_nameTEST_METADATA)
-	ctx.Step(`^the metadata should not be sent to the validation API$`, theMetadataShouldNotBeSentToTheValidationAPI)
+	ctx.Step(`^the response should be sent to the validation API with the payload_validation \'(.*)\'$`, theresponseShouldBeSentToTheValidationAPIWithTheresponse_validation_nameTEST_response)
+	ctx.Step(`^the response should not be sent to the validation API$`, theresponseShouldNotBeSentToTheValidationAPI)
 	ctx.Step(`^the prompt road map API returns an statusCode 500$`, thePromptRoadMapAPIReturnsAnStatusCode500)
 	ctx.Step(`^the prompt road map API returns the following prompt road map for step \'(\d+)\' and prompt_road_map_config_name \'(.*)\':$`, thePromptRoadMapAPIReturnsTheFollowingPromptRoadMap)
 	ctx.Step(`^the prompt_road_map is fetched from the prompt-road-map-api using the prompt_road_map_config_name \'(.*)\' and step \'(\d+)\'$`, thePrompt_road_mapIsFetchedFromThePromptroadmapapiUsingThePrompt_road_map_config_name)
-	ctx.Step(`^the prompt_road_map_config_execution step_in_execution is updated to \'(\d+)\'$`, thePrompt_road_map_config_executionIsUpdatedWithTheCurrentStepOfThePrompt_road_map)
 	ctx.Step(`^the validation API returns the following validation result for payload_validation \'(.*)\':$`, theValidationAPIReturnsTheFollowingValidationResult)
+	ctx.Step(`^the following prompt should be sent to the following ai model:$`, theFollowingPromptShouldBeSentToTheFollowingAiModel)
+	ctx.Given(`the ai model \'(.*)\' returns the following response:`, theAiModelReturnsTheFollowingResponse)
 }

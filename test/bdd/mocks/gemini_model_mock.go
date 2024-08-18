@@ -9,7 +9,18 @@ import (
 
 type GeminiModelMock struct {
 	response string
+	prompt   string
 	err      error
+}
+
+func (g *GeminiModelMock) GetPrompt() string {
+	return g.prompt
+}
+
+func (g *GeminiModelMock) Clean() {
+	g.prompt = ""
+	g.response = ""
+	g.err = nil
 }
 
 func (g *GeminiModelMock) SetResponse(response string) {
@@ -21,6 +32,12 @@ func (g *GeminiModelMock) SetError(err error) {
 }
 
 func (g *GeminiModelMock) GenerateContent(ctx context.Context, parts ...genai.Part) (*genai.GenerateContentResponse, error) {
+	for _, part := range parts {
+		if text, ok := part.(genai.Text); ok {
+			g.prompt = string(text)
+		}
+	}
+
 	return &genai.GenerateContentResponse{
 		Candidates: []*genai.Candidate{
 			{

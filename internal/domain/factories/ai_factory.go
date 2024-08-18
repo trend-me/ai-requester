@@ -16,7 +16,7 @@ type (
 
 func (f *AiFactory) FactoryAi(model string) (ai interfaces.Ai, err error) {
 	m := map[string]interfaces.Ai{
-		properties.AiModelGemini: f.Gemini,
+		properties.AiModelNameGemini: f.Gemini,
 	}
 
 	ai = m[model]

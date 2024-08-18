@@ -43,7 +43,7 @@ func (a aiCallback) Publish(ctx context.Context, request *models.Request) error 
 		Metadata:                       request.Metadata,
 	})
 	if err != nil {
-		return exceptions.NewValidationError("error parsing ai-requester message", err.Error())
+		return exceptions.NewValidationError("error parsing ai-callback message", err.Error())
 	}
 
 	err = a.queue.Publish(ctx, b)
