@@ -313,6 +313,14 @@ func theAiModelReturnsTheFollowingResponse(model string, arg1 *godog.DocString) 
 	return fmt.Errorf("model '%s' was not configured in test setup", model)
 }
 
+func theAiModelFailsWithAnError(model, error string) error {
+	if model == properties.AiModelNameGemini {
+		geminiMock.SetError(fmt.Errorf(error))
+		return nil
+	}
+	return fmt.Errorf("model '%s' was not configured in test setup", model)
+}
+
 func InitializeScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
@@ -352,4 +360,5 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the validation API returns the following validation result for payload_validation \'(.*)\':$`, theValidationAPIReturnsTheFollowingValidationResult)
 	ctx.Step(`^the following prompt should be sent to the following ai model:$`, theFollowingPromptShouldBeSentToTheFollowingAiModel)
 	ctx.Given(`the ai model \'(.*)\' returns the following response:`, theAiModelReturnsTheFollowingResponse)
+	ctx.Given(`the ai model '{string}' fails with an error '{string}'`, theAiModelFailsWithAnError)
 }
