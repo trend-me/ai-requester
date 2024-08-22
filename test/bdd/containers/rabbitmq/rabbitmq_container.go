@@ -21,7 +21,10 @@ func Connect() error {
 		return err
 	}
 
-	if err = createQueues(); err != nil {
+	if err = createQueues(
+		"ai-requester",
+		"output-queue",
+		"ai-callback"); err != nil {
 		return err
 	}
 	return nil
@@ -31,11 +34,13 @@ func Disconnect() error {
 	return conn.Close()
 }
 
-func createQueues() error {
-	queues = map[string]*rabbitmq.Queue{
-		"ai-requester": nil,
-		"ai-callback":  nil,
+func createQueues(queueNames ...string) error {
+	queues = map[string]*rabbitmq.Queue{}
+
+	for _, k := range queueNames {
+		queues[k] = nil
 	}
+
 	for k := range queues {
 		queues[k] = rabbitmq.NewQueue(&conn, k, rabbitmq.ContentTypeJson, true, true, true)
 

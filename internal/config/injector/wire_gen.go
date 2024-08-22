@@ -9,15 +9,15 @@ package injector
 import (
 	"context"
 	"github.com/google/generative-ai-go/genai"
-	"github.com/trend-me/ai-requester/internal/config/connections"
 	"github.com/trend-me/ai-requester/internal/config/properties"
 	"github.com/trend-me/ai-requester/internal/delivery/controllers"
 	"github.com/trend-me/ai-requester/internal/domain/factories"
 	"github.com/trend-me/ai-requester/internal/domain/interfaces"
 	"github.com/trend-me/ai-requester/internal/domain/usecases"
-	"github.com/trend-me/ai-requester/internal/integration/ai"
-	"github.com/trend-me/ai-requester/internal/integration/api"
-	"github.com/trend-me/ai-requester/internal/integration/queue"
+	"github.com/trend-me/ai-requester/internal/integration/ais"
+	"github.com/trend-me/ai-requester/internal/integration/apis"
+	"github.com/trend-me/ai-requester/internal/integration/connections"
+	"github.com/trend-me/ai-requester/internal/integration/queues"
 	"github.com/trend-me/golang-rabbitmq-lib/rabbitmq"
 	"google.golang.org/api/option"
 )
@@ -30,16 +30,18 @@ func InitializeQueueAiRequesterConsumer() (interfaces.QueueAiRequesterConsumer, 
 		return nil, err
 	}
 	connectionAiCallback := newQueueConnectionAiCallback(connection)
-	queueAiCallback := queue.NewAiRequester(connectionAiCallback)
-	aiGeminiKeysGetter := geminiKeysGetter()
-	aiGeminiModelConstructor := geminiModelConstructor()
-	interfacesAi := ai.NewGemini(aiGeminiKeysGetter, aiGeminiModelConstructor)
-	aiFactory := factories.NewAiFactory(interfacesAi)
+	queueAiCallback := queues.NewAiRequester(connectionAiCallback)
+	aisGeminiKeysGetter := geminiKeysGetter()
+	aisGeminiModelConstructor := geminiModelConstructor()
+	ai := ais.NewGemini(aisGeminiKeysGetter, aisGeminiModelConstructor)
+	aiFactory := factories.NewAiFactory(ai)
 	urlApiPromptRoadMapConfig := urlApiPromptRoadMapConfigGetter()
-	apiPromptRoadMapConfig := api.NewApiPromptRoadMapConfig(urlApiPromptRoadMapConfig)
+	apiPromptRoadMapConfig := apis.NewApiPromptRoadMapConfig(urlApiPromptRoadMapConfig)
+	connectionOutputGetter := newQueueConnectionOutputGetter(connection)
+	queueOutput := queues.NewOutput(connectionOutputGetter)
 	urlApiValidation := urlApiValidationGetter()
-	apiValidation := api.NewValidation(urlApiValidation)
-	useCase := usecases.NewUseCase(queueAiCallback, aiFactory, apiPromptRoadMapConfig, apiValidation)
+	apiValidation := apis.NewValidation(urlApiValidation)
+	useCase := usecases.NewUseCase(queueAiCallback, aiFactory, apiPromptRoadMapConfig, queueOutput, apiValidation)
 	controller := controllers.NewController(useCase)
 	connectionAiRequesterConsumer := newQueueConnectionAiRequesterConsumer(connection)
 	queueAiRequesterConsumer := newQueueAiRequesterConsumer(controller, connectionAiRequesterConsumer)
@@ -48,26 +50,26 @@ func InitializeQueueAiRequesterConsumer() (interfaces.QueueAiRequesterConsumer, 
 
 // wire.go:
 
-func newQueueConnectionAiRequesterConsumer(connection *rabbitmq.Connection) queue.ConnectionAiRequesterConsumer {
+func newQueueConnectionAiRequesterConsumer(connection *rabbitmq.Connection) queues.ConnectionAiRequesterConsumer {
 	return rabbitmq.NewQueue(
 		connection, properties.QueueAiRequester, rabbitmq.ContentTypeJson, properties.CreateQueueIfNX(), true,
 		true,
 	)
 }
 
-func newQueueConnectionAiCallback(connection *rabbitmq.Connection) queue.ConnectionAiCallback {
+func newQueueConnectionAiCallback(connection *rabbitmq.Connection) queues.ConnectionAiCallback {
 	return rabbitmq.NewQueue(
 		connection, properties.QueueAiCallback, rabbitmq.ContentTypeJson, properties.CreateQueueIfNX(), true,
 		true,
 	)
 }
 
-func newQueueAiRequesterConsumer(controller interfaces.Controller, connectionAiPromptBuilderConsumer queue.ConnectionAiRequesterConsumer) interfaces.QueueAiRequesterConsumer {
-	return queue.NewAiPromptBuilderConsumer(connectionAiPromptBuilderConsumer, controller)
+func newQueueAiRequesterConsumer(controller interfaces.Controller, connectionAiPromptBuilderConsumer queues.ConnectionAiRequesterConsumer) interfaces.QueueAiRequesterConsumer {
+	return queues.NewAiPromptBuilderConsumer(connectionAiPromptBuilderConsumer, controller)
 }
 
-func geminiModelConstructor() ai.GeminiModelConstructor {
-	return func(ctx context.Context, key string) (ai.GeminiModel, error) {
+func geminiModelConstructor() ais.GeminiModelConstructor {
+	return func(ctx context.Context, key string) (ais.GeminiModel, error) {
 		client, err := genai.NewClient(context.Background(), option.WithAPIKey(key))
 		if err != nil {
 			return nil, err
@@ -76,14 +78,24 @@ func geminiModelConstructor() ai.GeminiModelConstructor {
 	}
 }
 
-func geminiKeysGetter() ai.GeminiKeysGetter {
+func geminiKeysGetter() ais.GeminiKeysGetter {
 	return properties.AiGeminiKeys
 }
 
-func urlApiValidationGetter() api.UrlApiValidation {
+func urlApiValidationGetter() apis.UrlApiValidation {
 	return properties.UrlApiValidation
 }
 
-func urlApiPromptRoadMapConfigGetter() api.UrlApiPromptRoadMapConfig {
+func urlApiPromptRoadMapConfigGetter() apis.UrlApiPromptRoadMapConfig {
 	return properties.UrlApiPromptRoadMapConfig
+}
+
+func newQueueConnectionOutputGetter(connection *rabbitmq.Connection) queues.ConnectionOutputGetter {
+	return func(queueName string) queues.ConnectionOutput {
+		return rabbitmq.NewQueue(
+			connection,
+			queueName, rabbitmq.ContentTypeJson, properties.CreateQueueIfNX(), true,
+			true,
+		)
+	}
 }

@@ -11,18 +11,18 @@ func Up() {
 	errChan = make(chan error, 1)
 	// Stop any running containers
 	cmd := exec.Command("docker-compose", "-f", "../containers/docker-compose.yml", "down", "--volumes")
-	stdout, err := cmd.Output()
+	_, err := cmd.Output()
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	fmt.Println(string(stdout))
+	//fmt.Println(string(stdout))
 
 	go func() {
 		// Start the containers
 		fmt.Println("Starting containers")
 		cmd = exec.Command("docker-compose", "-f", "../containers/docker-compose.yml", "up")
-		stdout, err = cmd.Output()
-		fmt.Println(string(stdout))
+		_, err = cmd.Output()
+		//fmt.Println(string(stdout))
 		if err != nil {
 			fmt.Println(err.Error())
 			errChan <- err

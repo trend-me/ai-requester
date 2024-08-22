@@ -160,3 +160,44 @@ Feature: Build AI prompts and forward the event to ai-requester queue
     And the response should not be sent to the validation API
     And no message should be sent to the 'ai-callback' queue
     And the application should retry
+
+
+  Scenario: Successfully process an error when max attempts are reached
+    Given a message with the following data is sent to 'ai-requester' queue:
+    """
+    {
+    "prompt_road_map_config_execution_id":"c713deb9-efa2-4d5f-9675-abe0b7e0c0d4",
+    "prompt_road_map_config_name":"TEST",
+    "output_queue":"output-queue",
+    "prompt_road_map_step":2,
+    "prompt":"this is a test. [1 2 3 4] 1",
+    "model":"gemini",
+    "metadata":{"any": { "thing":"test", "array":[1,2,3,4]} },
+    }
+    """
+    Given the prompt road map API returns an statusCode 500
+    Given max receive count is '-1'
+    When the message is consumed by the ai-requester consumer
+    Then the prompt_road_map is fetched from the prompt-road-map-api using the prompt_road_map_config_name 'TEST' and step '2'
+    And the response should not be sent to the validation API
+    And no message should be sent to the 'ai-callback' queue
+    And a message with the following data should be sent to 'output-queue' queue:
+    """
+    {
+    "prompt_road_map_config_execution_id":"c713deb9-efa2-4d5f-9675-abe0b7e0c0d4",
+    "prompt_road_map_config_name":"TEST",
+    "output_queue":"output-queue",
+    "prompt_road_map_step":2,
+    "prompt":"this is a test. [1 2 3 4] 1",
+    "model":"gemini",
+    "metadata":{"any": { "thing":"test", "array":[1,2,3,4]} },
+    "error": {
+      "message": ["response with statusCode: '500 Internal Server Error'"],
+      "code":6,
+      "error_type":"Get Prompt Road Map Config Error",
+      "abort": false,
+      "notify": true 
+      }
+    }
+    """
+    And the application should not retry

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/trend-me/ai-requester/internal/domain/interfaces"
-	"github.com/trend-me/ai-requester/internal/integration/ai"
+	"github.com/trend-me/ai-requester/internal/integration/ais"
 
 	"github.com/cucumber/godog"
 	"github.com/joho/godotenv"
@@ -67,11 +67,11 @@ func setup(t *testing.T) {
 
 	geminiMock = &mocks.GeminiModelMock{}
 	consumer, err = injector.InitializeQueueAiRequesterConsumerMock(
-		ai.NewGemini(
+		ais.NewGemini(
 			func() []string {
 				return []string{"test"}
 			},
-			func(ctx context.Context, key string) (ai.GeminiModel, error) {
+			func(ctx context.Context, key string) (ais.GeminiModel, error) {
 				return geminiMock, nil
 			},
 		))
@@ -321,6 +321,11 @@ func theAiModelFailsWithAnError(model, error string) error {
 	return fmt.Errorf("model '%s' was not configured in test setup", model)
 }
 
+func maxReceiveCountIs(count string) error {
+	os.Setenv("MAX_RECEIVE_COUNT", count)
+	return nil
+}
+
 func InitializeScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
@@ -351,6 +356,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^no prompt_road_map should be fetched from the prompt-road-map-api$`, noPrompt_road_mapShouldBeFetchedFromThePromptroadmapapi)
 	ctx.Step(`^the application should not retry$`, theApplicationShouldNotRetry)
 	ctx.Step(`^the application should retry$`, theApplicationShouldRetry)
+	ctx.Step(`^max receive count is \'(.*)\'$`, maxReceiveCountIs)
 	ctx.Step(`^the message is consumed by the ai-requester consumer$`, theMessageIsConsumedByTheAipromptbuilderConsumer)
 	ctx.Step(`^the response should be sent to the validation API with the payload_validation \'(.*)\'$`, theresponseShouldBeSentToTheValidationAPIWithTheresponse_validation_nameTEST_response)
 	ctx.Step(`^the response should not be sent to the validation API$`, theresponseShouldNotBeSentToTheValidationAPI)
@@ -360,5 +366,5 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the validation API returns the following validation result for payload_validation \'(.*)\':$`, theValidationAPIReturnsTheFollowingValidationResult)
 	ctx.Step(`^the following prompt should be sent to the following ai model:$`, theFollowingPromptShouldBeSentToTheFollowingAiModel)
 	ctx.Given(`the ai model \'(.*)\' returns the following response:`, theAiModelReturnsTheFollowingResponse)
-	ctx.Given(`the ai model '{string}' fails with an error '{string}'`, theAiModelFailsWithAnError)
+	ctx.Given(`the ai model \'(.*)\' fails with an error \'(.*)\'`, theAiModelFailsWithAnError)
 }

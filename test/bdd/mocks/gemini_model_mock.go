@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/google/generative-ai-go/genai"
-	"github.com/trend-me/ai-requester/internal/integration/ai"
+	"github.com/trend-me/ai-requester/internal/integration/ais"
 )
 
 type GeminiModelMock struct {
@@ -51,6 +51,6 @@ func (g *GeminiModelMock) GenerateContent(ctx context.Context, parts ...genai.Pa
 	}, nil
 }
 
-func NewGeminiModelMock() ai.GeminiModel {
+func NewGeminiModelMock() ais.GeminiModel {
 	return &GeminiModelMock{}
 }

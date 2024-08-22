@@ -18,6 +18,7 @@ type UseCase struct {
 	apiPromptRoadMapConfig interfaces.ApiPromptRoadMapConfig
 	apiValidation          interfaces.ApiValidation
 	queueAiCallback        interfaces.QueueAiCallback
+	queueOutput            interfaces.QueueOutput
 	aiFactory              *factories.AiFactory
 }
 
@@ -87,8 +88,10 @@ func NewUseCase(
 	queueAiCallback interfaces.QueueAiCallback,
 	aiFactory *factories.AiFactory,
 	apiPromptRoadMapConfig interfaces.ApiPromptRoadMapConfig,
+	queueOutput interfaces.QueueOutput,
 	apiValidation interfaces.ApiValidation) interfaces.UseCase {
 	return &UseCase{
+		queueOutput:        queueOutput,
 		queueAiCallback:        queueAiCallback,
 		aiFactory:              aiFactory,
 		apiPromptRoadMapConfig: apiPromptRoadMapConfig,
