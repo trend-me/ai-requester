@@ -172,7 +172,7 @@ Feature: Build AI prompts and forward the event to ai-requester queue
     "prompt_road_map_step":2,
     "prompt":"this is a test. [1 2 3 4] 1",
     "model":"gemini",
-    "metadata":{"any": { "thing":"test", "array":[1,2,3,4]} },
+    "metadata":{"any": { "thing":"test", "array":[1,2,3,4]} }
     }
     """
     Given the prompt road map API returns an statusCode 500
@@ -188,12 +188,10 @@ Feature: Build AI prompts and forward the event to ai-requester queue
     "prompt_road_map_config_name":"TEST",
     "output_queue":"output-queue",
     "prompt_road_map_step":2,
-    "prompt":"this is a test. [1 2 3 4] 1",
     "model":"gemini",
     "metadata":{"any": { "thing":"test", "array":[1,2,3,4]} },
     "error": {
       "message": ["response with statusCode: '500 Internal Server Error'"],
-      "code":6,
       "error_type":"Get Prompt Road Map Config Error",
       "abort": false,
       "notify": true 
