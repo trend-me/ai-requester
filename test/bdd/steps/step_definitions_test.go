@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/trend-me/ai-requester/internal/domain/interfaces"
 	"github.com/trend-me/ai-requester/internal/integration/ais"
 
 	"github.com/cucumber/godog"
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/trend-me/ai-requester/internal/config/properties"
 	"github.com/trend-me/ai-requester/test/bdd/containers"
@@ -43,14 +43,8 @@ var (
 func setup(t *testing.T) {
 	m = mocha.New(t)
 	m.Start()
-	_ = os.Setenv("URL_API_PROMPT_ROAD_MAP_CONFIG", m.URL()+"/prompt_road_map_configs")
-	_ = os.Setenv("URL_API_PROMPT_ROAD_MAP_CONFIG_EXECUTION", m.URL()+"/prompt_road_map_config_executions")
-	_ = os.Setenv("URL_API_VALIDATION", m.URL()+"/payload_validations")
-	err := godotenv.Load("../.bdd.env")
-	if err != nil {
-		t.Fatalf("Error loading .env file: %v", err)
-	}
-
+	environment()
+	var err error
 	containers.Up()
 	for range 10 {
 		time.Sleep(10 * time.Second)
@@ -94,6 +88,16 @@ func down(t *testing.T) {
 	err = m.Close()
 	if err != nil {
 		t.Fatal(err.Error())
+	}
+}
+
+func environment() {
+	_ = os.Setenv("URL_API_PROMPT_ROAD_MAP_CONFIG", m.URL()+"/prompt_road_map_configs")
+	_ = os.Setenv("URL_API_PROMPT_ROAD_MAP_CONFIG_EXECUTION", m.URL()+"/prompt_road_map_config_executions")
+	_ = os.Setenv("URL_API_VALIDATION", m.URL()+"/payload_validations")
+	err := godotenv.Load("../.bdd.env")
+	if err != nil {
+		t.Fatalf("Error loading .env file: %v", err)
 	}
 }
 
@@ -330,6 +334,8 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
 		geminiMock.Clean()
+
+		environment()
 
 		if scopePromptRoadMapConfigsApiGetPromptRoadMap != nil {
 			scopePromptRoadMapConfigsApiGetPromptRoadMap.Clean()
