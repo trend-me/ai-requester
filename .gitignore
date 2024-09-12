@@ -1,4 +1,4 @@
-consumer
+./consumer
 .idea
 go.sum
 test/bdd/containers/rabbitmq/data
