@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"log"
 	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/joho/godotenv"
 	"github.com/trend-me/ai-requester/internal/config/injector"
@@ -27,10 +31,24 @@ func main() {
 		return
 	}
 
-	defer connections.Disconnect()
-
-	for {
-		_, _ = consumer.Consume(ctx)
+	errChan, err := consumer.Consume(ctx)
+	if err != nil {
+		log.Fatalf("Error initializing consumer: %v", err)
+		return
 	}
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case err := <-errChan:
+		if err != nil {
+			log.Printf("Error consuming messages: %v", err)
+		}
+	case sig := <-sigChan:
+		log.Printf("Received signal: %v. Shutting down...", sig)
+	}
+
+	defer connections.Disconnect()
 
 }
